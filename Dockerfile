@@ -43,5 +43,5 @@ RUN sed -i s/'<proxy_redirect_ip>'/${PROXY_REDIRECT_IP}/g /etc/nginx/localhost.c
 
 EXPOSE 80 443
 
-CMD ["/usr/sbin/nginx", "-g", "daemon off"]
+CMD ["/usr/sbin/nginx"]
 
