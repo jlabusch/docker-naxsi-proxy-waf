@@ -1,22 +1,20 @@
-FROM centos
-MAINTAINER Thibaut Lapierre <root@epheo.eu>
+FROM debian:jessie
+# Forked from Thibaut Lapierre's https://github.com/epheo/docker-naxsi-proxy-waf
+MAINTAINER Jacques Labuschagne <jlabusch@acm.org>
 
-#Variables
-ENV NGINX_VERSION 1.7.0
-ENV PROXY_REDIRECT_IP 192.168.7.10
+ENV NGINX_VERSION 1.8.1
+ENV NAXSI_VERSION 0.54
+ENV PROXY_REDIRECT_IP haproxy
 
-#Install dependencies
-RUN yum install -y wget tar pcre pcre-devel openssl-devel gcc unzip
-
-# Nginx
-RUN cd /usr/src/ && wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz && tar xf nginx-${NGINX_VERSION}.tar.gz && rm -f nginx-${NGINX_VERSION}.tar.gz
-# Naxsi
-RUN cd /usr/src/ && wget https://github.com/nbs-system/naxsi/archive/master.zip && unzip master.zip && rm master.zip
-
-# Compiling nginx with Naxsi
-RUN cd /usr/src/nginx-${NGINX_VERSION} && ./configure \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y curl build-essential bzip2 libpcre3-dev libssl-dev daemon libgeoip-dev && \
+    cd /usr/src && \
+    curl -sL http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz | tar -zxv && \
+    curl -sL https://github.com/nbs-system/naxsi/archive/0.54.tar.gz | tar -zxv && \
+    cd nginx-${NGINX_VERSION} && \
+    ./configure \
          --conf-path=/etc/nginx/nginx.conf \
-         --add-module=../naxsi-master/naxsi_src/ \
+         --add-module=../naxsi-${NAXSI_VERSION}/naxsi_src/ \
          --error-log-path=/var/log/nginx/error.log \
          --http-client-body-temp-path=/var/lib/nginx/body \
          --http-fastcgi-temp-path=/var/lib/nginx/fastcgi \
@@ -31,9 +29,8 @@ RUN cd /usr/src/nginx-${NGINX_VERSION} && ./configure \
          --without-http_uwsgi_module \
          --without-http_scgi_module \
          --with-http_gzip_static_module \
-         --with-ipv6 --prefix=/usr
-
-RUN cd /usr/src/nginx-${NGINX_VERSION} && make && make install
+         --with-ipv6 --prefix=/usr && \
+    make && make install
 
 ADD nginx/nginx.conf /etc/nginx/nginx.conf
 ADD nginx/naxsi.rules /etc/nginx/naxsi.rules
@@ -42,8 +39,9 @@ ADD nginx/localhost.conf /etc/nginx/localhost.conf
 
 RUN touch /etc/nginx/naxsi_all.rules && mkdir /var/lib/nginx
 
-#HomeMade template :)
 RUN sed -i s/'<proxy_redirect_ip>'/${PROXY_REDIRECT_IP}/g /etc/nginx/localhost.conf
 
-EXPOSE 80
-CMD ["nginx"]
+EXPOSE 80 443
+
+CMD ["/usr/sbin/nginx", "-g", "daemon off"]
+
